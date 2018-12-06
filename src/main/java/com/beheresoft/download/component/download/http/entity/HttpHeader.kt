@@ -133,4 +133,12 @@ class HttpHeader : HttpHeaders() {
         return add(name, value)
     }
 
+    override fun copy(): HttpHeader {
+        val header = HttpHeader()
+        headers.forEach {
+            header[it.key] = it.value
+        }
+        return header
+    }
+
 }

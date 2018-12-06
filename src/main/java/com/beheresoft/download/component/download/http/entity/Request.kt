@@ -1,33 +1,51 @@
 package com.beheresoft.download.component.download.http.entity
 
 import io.netty.handler.codec.DecoderResult
-import io.netty.handler.codec.http.HttpHeaders
-import io.netty.handler.codec.http.HttpMethod
-import io.netty.handler.codec.http.HttpRequest
-import io.netty.handler.codec.http.HttpVersion
+import io.netty.handler.codec.http.*
 import java.io.Serializable
+import java.net.URL
 
-class HttpNettyRequest : HttpRequest, Serializable {
+class Request(private var url: String) : HttpRequest, Serializable {
 
     lateinit var host: String
     var port: Int = 0
     var ssl: Boolean = false
-    var url: String? = null
     var httpMethod: HttpMethod? = HttpMethod.GET
     var version: HttpVersion? = HttpVersion.HTTP_1_1
-    lateinit var header: HttpHeader
-    lateinit var content: ByteArray
+    var header: HttpHeader
+    var content: DefaultLastHttpContent? = null
+
+    init {
+        val u = URL(url)
+        header = DefaultHttpHeader.get(u.host)
+    }
+
+    fun setURL(url: String) {
+        this.url = url
+        val u = URL(url)
+        port = if (u.port == -1) u.defaultPort else u.port
+        ssl = "https".equals(u.protocol, true)
+    }
+
+    fun body(body: String) {
+        content = DefaultLastHttpContent()
+        val data = body.toByteArray()
+        content?.content()?.writeBytes(data)
+        header.add(HttpHeaderNames.CONTENT_LENGTH, data.size)
+    }
+
+    fun hasBody() = content != null
 
     override fun uri(): String {
-        return url ?: ""
+        return url
     }
 
     override fun protocolVersion(): HttpVersion {
         return version ?: HttpVersion.HTTP_1_1
     }
 
-    override fun setUri(uri: String?): HttpRequest {
-        url = uri
+    override fun setUri(uri: String): HttpRequest {
+        setURL(uri)
         return this
     }
 

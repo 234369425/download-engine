@@ -1,8 +1,7 @@
 package com.beheresoft.download.component.download.http.handler
 
 import com.beheresoft.download.component.download.http.entity.Block
-import com.beheresoft.download.component.download.http.entity.HttpNettyRequest
-import com.beheresoft.download.component.download.http.entity.HttpNettyResponse
+import com.beheresoft.download.component.download.http.entity.Request
 import com.beheresoft.download.entity.Task
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandler
@@ -15,8 +14,7 @@ import java.nio.channels.SeekableByteChannel
 import java.util.logging.Logger
 
 class InboundHandlerAdapter constructor(private val task: Task, private val block: Block,
-                                        private val request: HttpNettyRequest,
-                                        private val response: HttpNettyResponse) : ChannelInboundHandler {
+                                        private val request: Request) : ChannelInboundHandler {
 
     private var normalClose: Boolean = true
     private lateinit var fileChannel: SeekableByteChannel
@@ -42,8 +40,8 @@ class InboundHandlerAdapter constructor(private val task: Task, private val bloc
                 val buff = content.content()
                 var size = buff.readableBytes()
 
-                if (response.supportBlock && block.download + size > block.size()) {
-                    size = (block.size() - block.download).toInt()
+                if (task.supportBlock && block.downSize + size > block.size()) {
+                    size = (block.size() - block.downSize).toInt()
                 }
 
                 fileChannel.write(buff.nioBuffer())
@@ -52,7 +50,7 @@ class InboundHandlerAdapter constructor(private val task: Task, private val bloc
                     task.addDownSize(size)
 
                 }
-                if (!response.supportBlock && content !is LastHttpContent) {
+                if (!task.supportBlock && content !is LastHttpContent) {
                     return
                 }
             }
