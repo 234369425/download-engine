@@ -1,8 +1,8 @@
 package com.beheresoft.download.component.download.http.handler
 
+import com.beheresoft.download.component.download.http.Task
 import com.beheresoft.download.component.download.http.entity.Block
 import com.beheresoft.download.component.download.http.entity.Request
-import com.beheresoft.download.entity.Task
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandler
 import io.netty.handler.codec.http.HttpContent

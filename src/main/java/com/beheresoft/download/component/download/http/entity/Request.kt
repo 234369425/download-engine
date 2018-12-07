@@ -7,7 +7,7 @@ import java.net.URL
 
 class Request(private var url: String) : HttpRequest, Serializable {
 
-    lateinit var host: String
+    var host: String? = null
     var port: Int = 0
     var ssl: Boolean = false
     var httpMethod: HttpMethod? = HttpMethod.GET
@@ -17,12 +17,15 @@ class Request(private var url: String) : HttpRequest, Serializable {
 
     init {
         val u = URL(url)
+        host = u.host
         header = DefaultHttpHeader.get(u.host)
+        setURL(url)
     }
 
     fun setURL(url: String) {
         this.url = url
         val u = URL(url)
+        host = u.host
         port = if (u.port == -1) u.defaultPort else u.port
         ssl = "https".equals(u.protocol, true)
     }
@@ -83,7 +86,7 @@ class Request(private var url: String) : HttpRequest, Serializable {
     }
 
     override fun headers(): HttpHeaders {
-        return headers()
+        return header
     }
 
     override fun setProtocolVersion(version: HttpVersion?): HttpRequest {

@@ -8,5 +8,5 @@ import org.springframework.context.annotation.Configuration
 class DownloadConfig {
     var savePath: String = ""
     var speedLimit: Long = -1
-    var timeout: Long = 60
+    var timeout: Long = 5
 }
