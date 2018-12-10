@@ -37,7 +37,7 @@ class HttpDownloadBootStrap constructor(url: String, private val config: Downloa
             loopGroup = NioEventLoopGroup(1)
         }
         val task = analysisTask()
-
+        print("")
     }
 
     private fun analysisTask(): Task {
@@ -64,14 +64,15 @@ class HttpDownloadBootStrap constructor(url: String, private val config: Downloa
             }
         }
         if (code != HttpResponseStatus.OK.code() && code != HttpResponseStatus.PARTIAL_CONTENT.code()) {
-            throw HttpDownloadBootstrapException()
+            throw HttpDownloadBootstrapException(code)
         }
         val task = Task()
 
         val resHeader = response.headers()
         val range = resHeader.get(HttpHeaderNames.CONTENT_RANGE)
         if (range == null) {
-            task.size = resHeader.get(HttpHeaderNames.CONTENT_LENGTH)!!.toLong()
+            val length = resHeader.get(HttpHeaderNames.CONTENT_LENGTH)
+            task.size = length?.toLong() ?: -1
         } else {
             task.size = range.split("/").last().toLong()
         }
@@ -83,7 +84,8 @@ class HttpDownloadBootStrap constructor(url: String, private val config: Downloa
     }
 
     val fileName = Pattern.compile("^.*filename\\*?=\"?(?:.*'')?([^\"]*)\"?$")
-    private fun encode(nettyString: String): String {
+    private fun encode(nettyString: String?): String {
+        if (nettyString == null) return ""
         val encodeResult = StringBuilder()
         for (i in 0 until nettyString.length) {
             val ch = nettyString[i]

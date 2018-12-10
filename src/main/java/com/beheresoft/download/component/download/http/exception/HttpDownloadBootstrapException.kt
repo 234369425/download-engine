@@ -1,5 +1,5 @@
 package com.beheresoft.download.component.download.http.exception
 
-class HttpDownloadBootstrapException() : Exception() {
+class HttpDownloadBootstrapException(val code: Int) : Exception() {
 
 }
