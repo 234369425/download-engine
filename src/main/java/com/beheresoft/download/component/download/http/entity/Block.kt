@@ -4,11 +4,17 @@ import com.beheresoft.download.enums.DownLoadStatus
 import io.netty.channel.Channel
 import java.nio.channels.SeekableByteChannel
 
-data class Block(var start: Long, var end: Long, var downSize: Long, var connect: Channel, var fileChannel: SeekableByteChannel) {
+data class Block(var start: Long, var end: Long, var downSize: Long) {
 
     var errorTimes: Int = 0
+    lateinit var connect: Channel
+    lateinit var fileChannel: SeekableByteChannel
     var status: DownLoadStatus = DownLoadStatus.WAIT
     var speed: Long = 0
+
+    fun resetErrorTime() {
+        errorTimes = 0
+    }
 
     fun size() = end + 1 - start
 
