@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Configuration
 @Configuration
 @ConfigurationProperties(prefix = "system")
 class DownloadConfig {
-    var savePath: String = ""
+    var savePath: String = "f:/"
     var speedLimit: Long = -1
     var timeout: Long = 30
     var connections = 10

@@ -5,7 +5,6 @@ import com.beheresoft.download.component.download.http.entity.Request
 import com.beheresoft.download.component.download.http.exception.HttpDownloadBootstrapException
 import com.beheresoft.download.component.download.http.exception.TaskCreateErrorException
 import com.beheresoft.download.config.DownloadConfig
-import com.beheresoft.download.enums.DownLoadStatus
 import com.beheresoft.download.utils.FileOperate
 import com.beheresoft.download.utils.OS
 import io.netty.bootstrap.Bootstrap
@@ -33,6 +32,7 @@ class HttpDownloadBootStrap constructor(url: String, private val config: Downloa
     private val log = LoggerFactory.getLogger(HttpDownloadBootStrap::class.java)
     private var loopGroup: NioEventLoopGroup? = null
     private var task: Task
+    private val filenamePattern = Pattern.compile("^.*filename\\*?=\"?(?:.*'')?([^\"]*)\"?$")
 
     init {
         if (loopGroup == null) {
@@ -52,9 +52,8 @@ class HttpDownloadBootStrap constructor(url: String, private val config: Downloa
         if (paths.toFile().freeSpace < task.size) {
             throw IOException("磁盘剩余空间不足")
         }
-        val file = Paths.get(paths.toUri().toString() + "/" + task.fileName).toFile()
+        val file = Paths.get(config.savePath + "/" + task.fileName).toFile()
         if (file.exists()) {
-            FileWalkDirection.valueOf(paths.toAbsolutePath().toString())
             Paths.get(paths.toUri().toString() + "/temp" + file.extension)
         }
         if (task.supportBlock) {
@@ -74,7 +73,8 @@ class HttpDownloadBootStrap constructor(url: String, private val config: Downloa
             task.addBlock(Block(0, task.size - 1, task.size))
             return
         }
-        val connections = if (task.size < config.connections * 1024) task.size.toInt() / 1024 else config.connections
+        val mbs10 = 1024 * 1024 * 10
+        val connections = if (task.size < config.connections * mbs10) task.size.toInt() / mbs10 else config.connections
         val blockSize = task.size / connections
         for (i in 0..connections) {
             var start: Long = i * blockSize
@@ -94,14 +94,7 @@ class HttpDownloadBootStrap constructor(url: String, private val config: Downloa
     }
 
     fun start() {
-        task.status = DownLoadStatus.DOWNING
-        task.startTime = System.currentTimeMillis()
-        task.blocks.forEach {
-            it.resetErrorTime()
-            if (it.status != DownLoadStatus.DONE) {
-                it.status = DownLoadStatus.DOWNING
-            }
-        }
+        task.start()
 
     }
 
@@ -143,12 +136,11 @@ class HttpDownloadBootStrap constructor(url: String, private val config: Downloa
         }
         task.supportBlock = resHeader.contains(HttpHeaderNames.CONTENT_LENGTH) && response.status() == HttpResponseStatus.PARTIAL_CONTENT
         val name = FileOperate.encodeName(resHeader.get(HttpHeaderNames.CONTENT_DISPOSITION))
-        val matcher = fileName.matcher(name)
+        val matcher = filenamePattern.matcher(name)
         task.fileName = if (matcher.find()) matcher.group(1) else "unknown"
         return task
     }
 
-    val fileName = Pattern.compile("^.*filename\\*?=\"?(?:.*'')?([^\"]*)\"?$")
 
     private fun checkResource(): HttpResponse? {
         var httpResponse: HttpResponse? = null
@@ -197,6 +189,5 @@ class HttpDownloadBootStrap constructor(url: String, private val config: Downloa
         request.header.remove(HttpHeaderNames.RANGE)
         return httpResponse
     }
-
 
 }

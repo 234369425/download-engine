@@ -1,9 +1,13 @@
 package com.beheresoft.download.component.download.http
 
 import com.beheresoft.download.component.download.http.entity.Block
+import com.beheresoft.download.component.download.http.entity.Request
 import com.beheresoft.download.enums.DownLoadStatus
+import io.netty.channel.nio.NioEventLoopGroup
+import java.util.concurrent.TimeUnit
 
-class Task(var size: Long = 0) {
+class Task(var size: Long = 0, override var request: Request, override var loopGroup: NioEventLoopGroup) : HttpDownloadEvent {
+
     var speed: Int = 0
     var startTime: Long = 0
     var pauseTime: Long = 0
@@ -13,6 +17,7 @@ class Task(var size: Long = 0) {
     var fileName: String? = null
     var status: DownLoadStatus = DownLoadStatus.WAIT
     var blocks: ArrayList<Block> = ArrayList()
+    private var progress: ProgressThread? = null
 
     fun addBlock(b: Block) {
         blocks.add(b)
@@ -20,5 +25,58 @@ class Task(var size: Long = 0) {
 
     fun addDownSize(size: Int) {
         downSize += size
+    }
+
+    override fun start() {
+        if (progress == null) {
+            progress = ProgressThread(this)
+        }
+
+        progress?.start()
+        startTime = System.currentTimeMillis()
+        status = DownLoadStatus.DOWNING
+        blocks.forEach {
+            it.resetErrorTime()
+            if (it.status != DownLoadStatus.DONE) {
+                it.status = DownLoadStatus.DOWNING
+            }
+        }
+
+    }
+
+    override fun pause() {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
+
+    override fun remove() {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
+
+
+    //计算瞬时速度
+    class ProgressThread(private val task: Task, private val period: Long = 100) : Thread() {
+
+        private var run = true
+
+        override fun run() {
+            while (run) {
+                if (task.status != DownLoadStatus.DONE) {
+                    var speed = 0
+                    task.blocks.forEach {
+                        if (it.status != DownLoadStatus.DONE) {
+                            speed += it.getSpeed()
+                        }
+                    }
+                    task.speed = speed
+                } else {
+                    run = false
+                }
+                TimeUnit.MILLISECONDS.sleep(period)
+            }
+        }
+
+        fun exit() {
+            run = false
+        }
     }
 }
