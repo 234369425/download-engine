@@ -1,24 +1,23 @@
 package com.beheresoft.download.component.download.http.callback
 
-import com.beheresoft.download.component.download.http.HttpDownloadBootStrap
 import com.beheresoft.download.component.download.http.entity.Block
 
 interface Callback {
 
-    fun onStart(bootstrap: HttpDownloadBootStrap)
+    fun onStart()
 
-    fun onProgress(bootstrap: HttpDownloadBootStrap)
+    fun onProgress()
 
-    fun onPause(bootstrap: HttpDownloadBootStrap)
+    fun onPause()
 
-    fun onResume(bootstrap: HttpDownloadBootStrap)
+    fun onResume()
 
-    fun onBlockError(bootstrap: HttpDownloadBootStrap, block: Block)
+    fun onBlockError(block: Block)
 
-    fun onError(bootstrap: HttpDownloadBootStrap)
+    fun onError()
 
-    fun onBlockDone(bootstrap: HttpDownloadBootStrap, block: Block)
+    fun onBlockDone(block: Block)
 
-    fun onDone(bootstrap: HttpDownloadBootStrap)
+    fun onDone()
 
 }

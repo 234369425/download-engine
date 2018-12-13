@@ -6,7 +6,7 @@ import com.beheresoft.download.enums.DownLoadStatus
 import io.netty.channel.nio.NioEventLoopGroup
 import java.util.concurrent.TimeUnit
 
-class Task(var size: Long = 0, override var request: Request, override var loopGroup: NioEventLoopGroup) : HttpDownloadEvent {
+class Task(var size: Long = 0, var request: Request, var loopGroup: NioEventLoopGroup) {
 
     var speed: Int = 0
     var startTime: Long = 0
@@ -27,7 +27,7 @@ class Task(var size: Long = 0, override var request: Request, override var loopG
         downSize += size
     }
 
-    override fun start() {
+    fun start() {
         if (progress == null) {
             progress = ProgressThread(this)
         }
@@ -37,18 +37,17 @@ class Task(var size: Long = 0, override var request: Request, override var loopG
         status = DownLoadStatus.DOWNING
         blocks.forEach {
             it.resetErrorTime()
-            if (it.status != DownLoadStatus.DONE) {
-                it.status = DownLoadStatus.DOWNING
-            }
+            it.start()
         }
 
     }
 
-    override fun pause() {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    fun pause() {
+        speed = 0
+        progress?.exit()
     }
 
-    override fun remove() {
+    fun remove() {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 

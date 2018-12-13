@@ -4,6 +4,7 @@ import com.beheresoft.download.component.download.http.entity.Block
 import com.beheresoft.download.component.download.http.entity.Request
 import com.beheresoft.download.component.download.http.exception.HttpDownloadBootstrapException
 import com.beheresoft.download.component.download.http.exception.TaskCreateErrorException
+import com.beheresoft.download.component.download.http.utils.SSL
 import com.beheresoft.download.config.DownloadConfig
 import com.beheresoft.download.utils.FileOperate
 import com.beheresoft.download.utils.OS
@@ -15,8 +16,6 @@ import io.netty.channel.ChannelInitializer
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.nio.NioSocketChannel
 import io.netty.handler.codec.http.*
-import io.netty.handler.ssl.SslContextBuilder
-import io.netty.handler.ssl.util.InsecureTrustManagerFactory
 import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.nio.file.Files
@@ -30,14 +29,11 @@ class HttpDownloadBootStrap constructor(url: String, private val config: Downloa
 
     private var request = Request(url)
     private val log = LoggerFactory.getLogger(HttpDownloadBootStrap::class.java)
-    private var loopGroup: NioEventLoopGroup? = null
+    private var loopGroup: NioEventLoopGroup = NioEventLoopGroup(1)
     private var task: Task
     private val filenamePattern = Pattern.compile("^.*filename\\*?=\"?(?:.*'')?([^\"]*)\"?$")
 
     init {
-        if (loopGroup == null) {
-            loopGroup = NioEventLoopGroup(1)
-        }
         task = analysisTask()
         if (config.savePath.isEmpty()) {
             throw IOException("不知道要在哪保存")
@@ -70,21 +66,21 @@ class HttpDownloadBootStrap constructor(url: String, private val config: Downloa
 
     private fun createBlocks() {
         if (task.size <= 0 || !task.supportBlock) {
-            task.addBlock(Block(0, task.size - 1, task.size))
+            task.addBlock(Block(0, task.size - 1, task.size, request, loopGroup))
             return
         }
         val mbs10 = 1024 * 1024 * 10
         val connections = if (task.size < config.connections * mbs10) task.size.toInt() / mbs10 else config.connections
         val blockSize = task.size / connections
         for (i in 0..connections) {
-            var start: Long = i * blockSize
+            val start: Long = i * blockSize
             var end: Long = start + blockSize - 1
             var size: Long = blockSize
             if (i == connections - 1) {
                 size += task.size % connections
                 end += task.size % connections
             }
-            task.addBlock(Block(start, end, size))
+            task.addBlock(Block(start, end, size, request, loopGroup))
         }
     }
 
@@ -124,7 +120,7 @@ class HttpDownloadBootStrap constructor(url: String, private val config: Downloa
         if (code != HttpResponseStatus.OK.code() && code != HttpResponseStatus.PARTIAL_CONTENT.code()) {
             throw HttpDownloadBootstrapException(code)
         }
-        val task = Task()
+        val task = Task(0, request, loopGroup)
 
         val resHeader = response.headers()
         val range = resHeader.get(HttpHeaderNames.CONTENT_RANGE)
@@ -152,8 +148,7 @@ class HttpDownloadBootStrap constructor(url: String, private val config: Downloa
                 .handler(object : ChannelInitializer<Channel>() {
                     override fun initChannel(ch: Channel) {
                         if (request.ssl) {
-                            ch.pipeline().addLast(SslContextBuilder.forClient().trustManager(InsecureTrustManagerFactory.INSTANCE).build()
-                                    .newHandler(ch.alloc(), request.host, request.port))
+                            ch.pipeline().addLast(SSL.handler(ch, request.host!!, request.port))
                         }
                         ch.pipeline().addLast("httpCodec", HttpClientCodec())
                         ch.pipeline().addLast(object : ChannelInboundHandlerAdapter() {
