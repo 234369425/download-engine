@@ -7,7 +7,6 @@ import com.beheresoft.download.component.download.http.exception.TaskCreateError
 import com.beheresoft.download.component.download.http.utils.SSL
 import com.beheresoft.download.config.DownloadConfig
 import com.beheresoft.download.utils.FileOperate
-import com.beheresoft.download.utils.OS
 import io.netty.bootstrap.Bootstrap
 import io.netty.channel.Channel
 import io.netty.channel.ChannelHandlerContext
@@ -18,6 +17,7 @@ import io.netty.channel.socket.nio.NioSocketChannel
 import io.netty.handler.codec.http.*
 import org.slf4j.LoggerFactory
 import java.io.IOException
+import java.nio.channels.SeekableByteChannel
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.concurrent.CountDownLatch
@@ -48,25 +48,15 @@ class HttpDownloadBootStrap constructor(url: String, private val config: Downloa
         if (paths.toFile().freeSpace < task.size) {
             throw IOException("磁盘剩余空间不足")
         }
-        val file = Paths.get(config.savePath + "/" + task.fileName).toFile()
-        if (file.exists()) {
-            Paths.get(paths.toUri().toString() + "/temp" + file.extension)
-        }
-        if (task.supportBlock) {
-            val system = Files.getFileStore(paths).type().toUpperCase()
-            if (OS.unix() || system == "NTFS" || system == "UFS" || system == "APFS") {
-                FileOperate.createSparse(file.path, task.size)
-            } else {
-                FileOperate.createDefault(file.path, task.size)
-            }
-        }
-        createBlocks()
-        start()
+
+        val (fileName, ext) = FileOperate.partitionName(task.fileName!!)
+        val name = FileOperate.genFileName(config.savePath, fileName, ext)
+        createBlocks(FileOperate.create(config.savePath, name, task.size)!!)
     }
 
-    private fun createBlocks() {
+    private fun createBlocks(fileChannel: SeekableByteChannel) {
         if (task.size <= 0 || !task.supportBlock) {
-            task.addBlock(Block(0, task.size - 1, task.size, request, loopGroup))
+            task.addBlock(Block(0, task.size - 1, task.size, request, loopGroup, fileChannel))
             return
         }
         val mbs10 = 1024 * 1024 * 10
@@ -80,7 +70,7 @@ class HttpDownloadBootStrap constructor(url: String, private val config: Downloa
                 size += task.size % connections
                 end += task.size % connections
             }
-            task.addBlock(Block(start, end, size, request, loopGroup))
+            task.addBlock(Block(start, end, size, request, loopGroup, fileChannel))
         }
     }
 

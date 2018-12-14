@@ -1,33 +1,85 @@
 package com.beheresoft.download.utils
 
+import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
 import java.net.URLDecoder
 import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
+import java.nio.channels.SeekableByteChannel
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.StandardOpenOption
 
 object FileOperate {
 
-    fun createSparse(filePath: String, length: Long) {
+    data class FileName(val name: String, val ext: String)
+
+    fun partitionName(fileName: String): FileName {
+        val extIndex = fileName.lastIndexOf(".")
+        return if (extIndex == -1) {
+            FileName(fileName, "")
+        } else {
+            FileName(fileName.substring(0, extIndex), fileName.substring(extIndex + 1))
+        }
+    }
+
+    fun genFileName(folder: String, name: String, ext: String): String {
+        val extension: String = if (ext.isBlank()) "" else ".$ext"
+        if (!File("$folder$name$extension").exists()) {
+            return "$name$extension"
+        }
+
+        val ignoreSensitivity = OS.ignoreSensitivity()
+        val existsFiles = File(folder).listFiles().map {
+            if (!OS.ignoreSensitivity()) it.name.toLowerCase() else it.name
+        }.filter {
+            it.startsWith(name, ignoreSensitivity) && it.endsWith(ext)
+        }
+        var returnName: String
+        var index = 0
+        do {
+            returnName = "$name-${index++}$extension"
+        } while (existsFiles.contains(returnName))
+        return returnName
+    }
+
+    fun create(savePath: String, name: String, length: Long, deleteOld: Boolean = false): SeekableByteChannel? {
+        val filePath = "$savePath/$name"
+        if (deleteOld) {
+            val oldFile = File(filePath)
+            if (oldFile.exists()) {
+                oldFile.delete()
+            }
+        }
+        val system = Files.getFileStore(Paths.get(savePath)).type().toUpperCase()
+        return if (OS.unix() || system == "NTFS" || system == "UFS" || system == "APFS") {
+            FileOperate.createSparse(filePath, length)
+        } else {
+            FileOperate.createDefault(filePath, length)
+        }
+    }
+
+    private fun createSparse(filePath: String, length: Long): SeekableByteChannel? {
         val path = Paths.get(filePath)
         try {
             Files.deleteIfExists(path)
             val channel = Files.newByteChannel(path, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE, StandardOpenOption.SPARSE)
             channel.position(length - 1)
             channel.write(ByteBuffer.wrap(byteArrayOf()))
+            return channel
         } catch (e: Exception) {
             throw IOException("创建文件失败 $filePath $length")
         }
     }
 
-    fun createDefault(filePath: String, length: Long) {
+    private fun createDefault(filePath: String, length: Long): FileChannel? {
         val path = Paths.get(filePath)
         try {
             Files.deleteIfExists(path)
             val file = RandomAccessFile(filePath, "rw")
             file.setLength(length)
+            return file.channel
         } catch (e: Exception) {
             throw IOException("创建文件失败 $filePath $length")
         }

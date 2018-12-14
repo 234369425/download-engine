@@ -30,9 +30,9 @@ class Task(var size: Long = 0, var request: Request, var loopGroup: NioEventLoop
     fun start() {
         if (progress == null) {
             progress = ProgressThread(this)
+            progress?.start()
         }
 
-        progress?.start()
         startTime = System.currentTimeMillis()
         status = DownLoadStatus.DOWNING
         blocks.forEach {

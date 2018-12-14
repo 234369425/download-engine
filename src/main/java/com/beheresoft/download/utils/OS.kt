@@ -16,6 +16,8 @@ object OS {
     fun x86() = "32" == osArch
     fun x64() = "64" == osArch
 
+    fun ignoreSensitivity() = windows()
+
     fun freePort() = ServerSocket().localPort
 
 

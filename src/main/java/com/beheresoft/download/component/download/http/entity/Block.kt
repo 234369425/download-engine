@@ -4,20 +4,20 @@ import com.beheresoft.download.component.download.http.handler.DownloadHandler
 import com.beheresoft.download.enums.DownLoadStatus
 import io.netty.bootstrap.Bootstrap
 import io.netty.channel.Channel
-import io.netty.channel.ChannelFutureListener
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.nio.NioSocketChannel
 import io.netty.handler.codec.http.HttpHeaderNames
 import org.slf4j.LoggerFactory
 import java.nio.channels.SeekableByteChannel
 
-data class Block(var start: Long, var end: Long, var downSize: Long,
-                 var request: Request, var loopGroup: NioEventLoopGroup) {
+data class Block(var start: Long, var end: Long,
+                 var request: Request, var loopGroup: NioEventLoopGroup,
+                 var fileChannel: SeekableByteChannel) {
 
-    var errorTimes: Int = 0
     var connect: Channel? = null
-    var fileChannel: SeekableByteChannel? = null
+    var downSize: Long = 0
     var status: DownLoadStatus = DownLoadStatus.WAIT
+    private var errorTimes: Int = 0
     private var position: Long = 0
     private var lastTotalTime = System.currentTimeMillis()
     private val log = LoggerFactory.getLogger(Block::class.java)
@@ -28,7 +28,7 @@ data class Block(var start: Long, var end: Long, var downSize: Long,
     fun isDone() = supportSegmentation() && downSize >= size()
 
     fun start() {
-        log.info("start block start $start end $end")
+        log.debug("start block start $start end $end")
         if (bootstrap == null) {
             bootstrap = Bootstrap()
             bootstrap!!.channel(NioSocketChannel::class.java)
@@ -37,7 +37,6 @@ data class Block(var start: Long, var end: Long, var downSize: Long,
             val chFu = bootstrap!!.connect(request.host, request.port)
             connect = bootstrap?.connect(request.host, request.port)?.channel()
             chFu.addListener {
-                val itFu = it as ChannelFutureListener
                 if (it.isSuccess) {
                     log.debug("connect success begin download ")
                     status = DownLoadStatus.DOWNING
@@ -67,7 +66,16 @@ data class Block(var start: Long, var end: Long, var downSize: Long,
     }
 
     fun getSpeed(): Int {
-        val speed = (downSize - position) / (System.currentTimeMillis() - lastTotalTime) / 60
+        if (lastTotalTime == 0L) {
+            lastTotalTime = System.currentTimeMillis()
+            return 0
+        }
+        val denominator = System.currentTimeMillis() - lastTotalTime
+        if (denominator == 0L) {
+            return 0
+        }
+        val speed = (downSize - position) / denominator / 60
+        log.debug("block [$start,$end] $downSize - $position --> $speed")
         position = downSize
         lastTotalTime = System.currentTimeMillis()
         return speed.toInt()
@@ -83,11 +91,11 @@ data class Block(var start: Long, var end: Long, var downSize: Long,
     fun size() = end + 1 - start
 
     fun plusDownSize(size: Int) {
-        downSize = downSize.plus(size)
+        downSize.plus(size)
     }
 
     fun plusErrorTimes() {
-        errorTimes = errorTimes.plus(1)
+        errorTimes.plus(1)
     }
 
 }
