@@ -38,8 +38,8 @@ class InboundHandlerAdapter constructor(private val block: Block,
                 val buff = content.content()
                 var size = buff.readableBytes()
                 //檢查是否超出範圍
-                if (block.size() > 0 && block.taskSize + size > block.size()) {
-                    size = (block.size() - block.taskSize).toInt()
+                if (block.size > 0 && block.size + size > block.size) {
+                    size = (block.size - block.downSize).toInt()
                 }
 
                 block.fileChannel.write(buff.nioBuffer())

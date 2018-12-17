@@ -17,6 +17,7 @@ data class Block(var start: Long, var end: Long,
     var connect: Channel? = null
     var downSize: Long = 0
     var status: DownLoadStatus = DownLoadStatus.WAIT
+    var size: Long = end - start
     private var errorTimes: Int = 0
     private var position: Long = 0
     private var lastTotalTime = System.currentTimeMillis()
@@ -25,10 +26,10 @@ data class Block(var start: Long, var end: Long,
 
     fun supportSegmentation() = end > 0
 
-    fun isDone() = supportSegmentation() && downSize >= size()
+    fun isDone() = supportSegmentation() && downSize >= size
 
     fun start() {
-        log.debug("start block start $start end $end")
+        log.debug("block start $start end $end")
         if (bootstrap == null) {
             bootstrap = Bootstrap()
             bootstrap!!.channel(NioSocketChannel::class.java)
@@ -75,7 +76,6 @@ data class Block(var start: Long, var end: Long,
             return 0
         }
         val speed = (downSize - position) / denominator / 60
-        log.debug("block [$start,$end] $downSize - $position --> $speed")
         position = downSize
         lastTotalTime = System.currentTimeMillis()
         return speed.toInt()
@@ -85,17 +85,12 @@ data class Block(var start: Long, var end: Long,
         errorTimes = 0
     }
 
-    /**
-     * 如果size等於0，獲取不到整體大小
-     */
-    fun size() = end + 1 - start
-
     fun plusDownSize(size: Int) {
-        downSize.plus(size)
+        downSize = downSize.plus(size)
     }
 
     fun plusErrorTimes() {
-        errorTimes.plus(1)
+        errorTimes = errorTimes.plus(1)
     }
 
 }

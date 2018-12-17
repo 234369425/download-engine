@@ -4,6 +4,7 @@ import com.beheresoft.download.component.download.http.entity.Block
 import com.beheresoft.download.component.download.http.entity.Request
 import com.beheresoft.download.enums.DownLoadStatus
 import io.netty.channel.nio.NioEventLoopGroup
+import org.slf4j.LoggerFactory
 import java.util.concurrent.TimeUnit
 
 class Task(var size: Long = 0, var request: Request, var loopGroup: NioEventLoopGroup) {
@@ -18,6 +19,7 @@ class Task(var size: Long = 0, var request: Request, var loopGroup: NioEventLoop
     var status: DownLoadStatus = DownLoadStatus.WAIT
     var blocks: ArrayList<Block> = ArrayList()
     private var progress: ProgressThread? = null
+    private val log = LoggerFactory.getLogger(Task::class.java)
 
     fun addBlock(b: Block) {
         blocks.add(b)
@@ -56,6 +58,7 @@ class Task(var size: Long = 0, var request: Request, var loopGroup: NioEventLoop
     class ProgressThread(private val task: Task, private val period: Long = 100) : Thread() {
 
         private var run = true
+        private val log = LoggerFactory.getLogger(ProgressThread::class.java)
 
         override fun run() {
             while (run) {

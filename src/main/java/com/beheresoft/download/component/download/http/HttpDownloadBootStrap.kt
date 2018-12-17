@@ -17,9 +17,10 @@ import io.netty.channel.socket.nio.NioSocketChannel
 import io.netty.handler.codec.http.*
 import org.slf4j.LoggerFactory
 import java.io.IOException
-import java.nio.channels.SeekableByteChannel
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.StandardOpenOption
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
@@ -51,12 +52,13 @@ class HttpDownloadBootStrap constructor(url: String, private val config: Downloa
 
         val (fileName, ext) = FileOperate.partitionName(task.fileName!!)
         val name = FileOperate.genFileName(config.savePath, fileName, ext)
-        createBlocks(FileOperate.create(config.savePath, name, task.size)!!)
+        createBlocks(Paths.get(FileOperate.create(config.savePath, name, task.size)))
     }
 
-    private fun createBlocks(fileChannel: SeekableByteChannel) {
+    private fun createBlocks(filePath: Path) {
         if (task.size <= 0 || !task.supportBlock) {
-            task.addBlock(Block(0, task.size - 1, task.size, request, loopGroup, fileChannel))
+            val fileChannel = Files.newByteChannel(filePath, StandardOpenOption.WRITE)
+            task.addBlock(Block(0, task.size - 1, request, loopGroup, fileChannel))
             return
         }
         val mbs10 = 1024 * 1024 * 10
@@ -70,7 +72,9 @@ class HttpDownloadBootStrap constructor(url: String, private val config: Downloa
                 size += task.size % connections
                 end += task.size % connections
             }
-            task.addBlock(Block(start, end, size, request, loopGroup, fileChannel))
+            val fileChannel = Files.newByteChannel(filePath, StandardOpenOption.WRITE)
+            fileChannel.position(start)
+            task.addBlock(Block(start, end, request, loopGroup, fileChannel))
         }
     }
 

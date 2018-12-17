@@ -44,7 +44,7 @@ object FileOperate {
         return returnName
     }
 
-    fun create(savePath: String, name: String, length: Long, deleteOld: Boolean = false): SeekableByteChannel? {
+    fun create(savePath: String, name: String, length: Long, deleteOld: Boolean = false): String {
         val filePath = "$savePath/$name"
         if (deleteOld) {
             val oldFile = File(filePath)
@@ -53,11 +53,12 @@ object FileOperate {
             }
         }
         val system = Files.getFileStore(Paths.get(savePath)).type().toUpperCase()
-        return if (OS.unix() || system == "NTFS" || system == "UFS" || system == "APFS") {
+        if (OS.unix() || system == "NTFS" || system == "UFS" || system == "APFS") {
             FileOperate.createSparse(filePath, length)
         } else {
             FileOperate.createDefault(filePath, length)
         }
+        return filePath
     }
 
     private fun createSparse(filePath: String, length: Long): SeekableByteChannel? {
